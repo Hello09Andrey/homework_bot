@@ -18,9 +18,9 @@ logging.basicConfig(
     filemode='w'
 )
 
-PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN_ENV')
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN_ENV')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID_ENV')
+PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 RETRY_TIME = 600
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
@@ -104,15 +104,12 @@ def parse_status(homework):
 
 def check_tokens():
     """Проверяет доступность переменных окружения необходимых для работы."""
-    list_of_bool_values = []
-    environment_variables = [
-        'PRACTICUM_TOKEN_ENV',
-        'TELEGRAM_TOKEN_ENV',
-        'TELEGRAM_CHAT_ID_ENV'
+    list_env = [
+        PRACTICUM_TOKEN,
+        TELEGRAM_TOKEN,
+        TELEGRAM_CHAT_ID
     ]
-    for variabl in environment_variables:
-        list_of_bool_values.append(variabl in os.environ)
-    return all(list_of_bool_values)
+    return all(list_env)
 
 
 def main():
