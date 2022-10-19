@@ -14,17 +14,17 @@ load_dotenv()
 
 file_handler = logging.FileHandler(filename='main.log')
 stdout_handler = logging.StreamHandler(stream=sys.stdout)
-handlers = [file_handler, stdout_handler]
 
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+TOKEN_NAMES = ['PRACTICUM_TOKEN', 'TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID']
 
 RETRY_TIME = 600
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
-VERDICTS_HOME_WORKS = {
+HOMEWORK_VERDICTS = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
@@ -37,21 +37,31 @@ def send_message(bot, message):
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logging.info('Message send')
     except Exception as error:
-        raise MessageNotSend(error, TELEGRAM_CHAT_ID, message)
+        raise MessageNotSend(
+            f'{error}!!! Message: {message}'
+            f'to chat: {TELEGRAM_CHAT_ID} not delivered'
+        )
 
 
 def get_api_answer(current_timestamp):
     """Делает запрос к эндпоинту API-сервиса."""
     params = {'from_date': current_timestamp}
     try:
-        response = requests.get(ENDPOINT, headers=HEADERS, params=params)
         logging.info(
             f'Sending a request to {ENDPOINT} with parameters {params}'
         )
+        response = requests.get(ENDPOINT, headers=HEADERS, params=params)
     except Exception as error:
-        raise ServerError(error)
+        raise ServerError(
+            f'{error}!!! Adress: {ENDPOINT}'
+            f' with headers: {HEADERS} and'
+            f' parameters: {params} does not answer'
+        )
     if response.status_code != HTTPStatus.OK:
-        raise HTTPRequestError(response)
+        raise HTTPRequestError(
+            f'Эндпоинт {response.url} недоступен. '
+            f'Код ответа API: {response.status_code}]'
+        )
     return response.json()
 
 
@@ -69,7 +79,7 @@ def check_response(response):
     if 'homeworks' not in response:
         raise KeyError('Key homeworks missing')
 
-    homeworks_response = response.get('homeworks')
+    homeworks_response = response['homeworks']
     if not isinstance(homeworks_response, list):
         raise TypeError(
             'Wrong type homeworks.'
@@ -81,20 +91,17 @@ def check_response(response):
 
 def parse_status(homework):
     """Извлекает название и статус из конкретной домашней работы."""
-    name = homework['homework_name']
     if 'homework_name' not in homework:
-        message = 'Missing key \'homework_name\'.'
-        raise KeyError(message)
+        raise KeyError('Missing key \'homework_name\'.')
+    name = homework['homework_name']
 
-    status = homework['status']
     if 'status' not in homework:
-        message = 'Missing key status.'
-        raise KeyError(message)
+        raise KeyError('Missing key status.')
+    status = homework['status']
 
-    verdict = VERDICTS_HOME_WORKS.get(status)
-    if status not in VERDICTS_HOME_WORKS:
-        message = f'{status} not among the possible'
-        raise KeyError(message)
+    if status not in HOMEWORK_VERDICTS:
+        raise KeyError(f'{status} not among the possible')
+    verdict = HOMEWORK_VERDICTS.get(status)
 
     return f'Изменился статус проверки работы "{name}". {verdict}'
 
@@ -102,15 +109,9 @@ def parse_status(homework):
 def check_tokens():
     """Проверяет доступность переменных окружения необходимых для работы."""
     variable_availability = True
-    keys_variable_value = {
-        'PRACTICUM_TOKEN': PRACTICUM_TOKEN,
-        'TELEGRAM_TOKEN': TELEGRAM_TOKEN,
-        'TELEGRAM_CHAT_ID': TELEGRAM_CHAT_ID
-    }
-
-    for token in keys_variable_value:
-        if keys_variable_value[token] is None:
-            logging.error(f'{token} not found')
+    for i in TOKEN_NAMES:
+        if globals()[i] is None:
+            logging.error(f'{i} not found')
             variable_availability = False
     return variable_availability
 
@@ -118,8 +119,7 @@ def check_tokens():
 def main():
     """Основная логика работы бота."""
     if not check_tokens():
-        message = 'No required environment'
-        raise KeyError(message)
+        raise KeyError('No required environment')
 
     last_send = {
         'error': None,
@@ -158,7 +158,7 @@ if __name__ == '__main__':
         level=logging.DEBUG,
         format='%(asctime)s | %(name)s | %(levelname)s '
                '| %(funcName)s | %(lineno)s | %(message)s',
-        handlers=handlers
+        handlers=[file_handler, stdout_handler]
 
     )
     main()
